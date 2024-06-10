@@ -11,8 +11,8 @@ Quill.register('modules/cursors', QuillCursors)
 window.addEventListener('load', () => {
     const ydoc = new Y.Doc()
     const provider = new WebsocketProvider(
-        "ws://localhost:3000/custom-ws",
-        'quill-demo-5',
+        "ws://localhost:3000/documents",
+        '4',
         ydoc
     )
     const ytext = ydoc.getText('quill')
@@ -59,42 +59,17 @@ window.addEventListener('load', () => {
     })
 
     // Send editor content to server when it changes
-    editor.on('text-change', (delta, oldDelta, source) => {
-        if (source === "user") {
-            const content = editor.getText(); // Get the plain text content of the editor
+    ytext.observe((event, transaction) => {
+        if (transaction.origin) {
+            const content = ytext.toString();
             const message = JSON.stringify({ type: 'content', data: content });
             console.log(message)
-            sendMessageToServer(message)
+            sendMessageToServer(message);
         }
     });
 
-    // Send cursor position to server when it changes
-    // editor.on('selection-change', range => {
-    //     if (range) {
-    //         const message = JSON.stringify({
-    //             type: 'cursor',
-    //             username: username,
-    //             range: range.index, // Send only the index of the cursor position
-    //             length: range.length // Send the length of the selection
-    //         });
-    //         socket.send(message);
-    //     }
-    // });
-
-    // Print text content to console when changed
-    // ytext.observe(() => {
-    //     const content = ytext.toString();
-    //     console.log('Text content:', content);
-
-    //     // Send the content to the server when text changes
-    //     sendMessageToServer(content);
-    // });
-
     // Function to send message to server
     function sendMessageToServer(message) {
-        // Send 'message' to the server via WebSocket
-        // You can send the message here using provider.ws.send()
-        // Example: provider.ws.send(message);
         provider.ws.send(message)
     }
 
