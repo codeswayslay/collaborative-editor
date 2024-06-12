@@ -1,9 +1,9 @@
 const path = require('path');
 
 module.exports = {
-    entry: './public/js/app.js', // Entry point of your frontend JavaScript/TypeScript
+    entry: './views/js/app.js', // Entry point of your frontend JavaScript/TypeScript
     output: {
-        path: path.resolve(__dirname, 'public/dist'),
+        path: path.resolve(__dirname, 'dist'),
         filename: 'bundle.js' // Output bundle file
     },
     resolve: {

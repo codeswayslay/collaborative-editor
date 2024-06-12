@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Document List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="card">
+            <div class="card-body">
+                <h1 class="card-title text-center">Document List</h1>
+                <ul class="list-group">
+                    <% documents.forEach(document=> { %>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>
+                                <%= document.name %>
+                            </span>
+                            <!-- Use JavaScript to redirect to /editor with document ID -->
+                            <button onclick="openEditor('<%= document._id %>')"
+                                class="btn btn-primary btn-sm">Open</button>
+                        </li>
+                        <% }) %>
+                </ul>
+                <div class="text-center mt-3">
+                    <button class="btn btn-success" data-toggle="modal" data-target="#createDocumentModal">Setup
+                        Document</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="createDocumentModal" tabindex="-1" aria-labelledby="createDocumentModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createDocumentModalLabel">Create Document</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form action="/create-document" method="post">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="documentName">Document Name:</label>
+                            <input type="text" id="documentName" name="documentName" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save Document</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        function openEditor(documentId) {
+            window.location.href = `/editor?id=${documentId}`;
+        }
+    </script>
+</body>
+
+</html>

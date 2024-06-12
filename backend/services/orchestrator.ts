@@ -1,12 +1,21 @@
 import http from 'http';
 import WebSocket from 'ws';
 import { setupWSConnection, docs } from 'y-websocket/bin/utils';
+import {
+    findDocumentById,
+    saveDocument,
+    getDocumentById,
+    getDocumentsByUserId,
+    updateDocumentById
+} from "./documentService";
 
 let debounceTimeout: NodeJS.Timeout;
 let saveNeeded = false;
 let lastContent: string;
 
-export function setupOrchastration(httpServer: http.Server, wss: WebSocket.Server): void {
+export function setupOrchastration(httpServer: http.Server, wss: WebSocket.Server): string {
+    let id: string = "";
+
     httpServer.on('upgrade', (request, socket, head) => {
         const url = new URL(request.url!, `http://${request.headers.host}`);
         const pathname = url.pathname;
@@ -14,79 +23,78 @@ export function setupOrchastration(httpServer: http.Server, wss: WebSocket.Serve
         // Check if the path matches the custom WebSocket path pattern
         const match = pathname.match(/^\/documents\/(.+)$/);
         if (match) {
-            const documentId = match[1];
+            const requestedDocumentId = match[1];
+
+            // Handle WebSocket upgrade
             wss.handleUpgrade(request, socket, head, (ws) => {
                 // Attach documentId to WebSocket connection
-                (ws as any).documentId = documentId;
+                (ws as any).documentId = requestedDocumentId;
                 wss.emit('connection', ws, request);
-                console.log("Created connection for ")
+                console.log("Created connection for document:", requestedDocumentId);
             });
         } else {
+            console.log("Invalid WebSocket path:", pathname);
             socket.destroy();
         }
     });
 
     wss.on('connection', (conn, req) => {
-        const documentId = (conn as any).documentId;
-        if (documentId) {
-            console.log(`Connected to document: ${documentId}`);
-            // setupWSConnection(conn, req, { gc: req.url?.slice(1) !== 'ws/prosemirror-versions' });
-            setupWSConnection(conn, req, { gc: true });
+        const connDocumentId = (conn as any).documentId;
+        id = connDocumentId;
+        console.log(`Connected to document: ${connDocumentId}`);
+        // setupWSConnection(conn, req, { gc: req.url?.slice(1) !== 'ws/prosemirror-versions' });
+        setupWSConnection(conn, req, { gc: true });
 
-            // Handle incoming messages
-            conn.on('message', (message) => {
-                let decodedMessage: string | undefined;
+        // Handle incoming messages
+        conn.on('message', (message) => {
+            let decodedMessage: string | undefined;
 
-                if (message instanceof ArrayBuffer) {
-                    const textDecoder = new TextDecoder();
-                    decodedMessage = textDecoder.decode(message);
-                } else if (Buffer.isBuffer(message)) {
-                    decodedMessage = message.toString('utf-8');
-                } else {
-                    // console.log('Unknown message type:', message);
-                    return;
-                }
+            if (message instanceof ArrayBuffer) {
+                const textDecoder = new TextDecoder();
+                decodedMessage = textDecoder.decode(message);
+            } else if (Buffer.isBuffer(message)) {
+                decodedMessage = message.toString('utf-8');
+            } else {
+                console.log('Unknown message type:', message);
+                return;
+            }
 
-                // Parse the message as JSON and check its type
-                if (decodedMessage) {
-                    try {
-                        const parsedMessage = JSON.parse(decodedMessage);
-                        if (parsedMessage.type === 'content') {
-                            console.log('Content message:', parsedMessage);
-                            lastContent = parsedMessage.data;
-                            saveNeeded = true;
+            // Parse the message as JSON and check its type
+            if (decodedMessage) {
+                try {
+                    const parsedMessage = JSON.parse(decodedMessage);
+                    if (parsedMessage.type === 'content') {
+                        console.log('Content message:', parsedMessage);
+                        lastContent = parsedMessage.data;
+                        saveNeeded = true;
 
-                            // Debounce database write
-                            clearTimeout(debounceTimeout);
-                            debounceTimeout = setTimeout(() => {
-                                if (saveNeeded) {
-                                    saveContentToDatabase(lastContent);
-                                    saveNeeded = false;
-                                }
-                            }, 1000);
-                        } else {
-                            // console.log('Other message type:', parsedMessage);
-                        }
-                    } catch (error) {
-                        // no point logging this
-                        // console.log('Failed to parse message as JSON:', decodedMessage);
+                        // Debounce database write
+                        clearTimeout(debounceTimeout);
+                        debounceTimeout = setTimeout(async () => {
+                            if (saveNeeded) {
+                                await saveContentToDatabase(connDocumentId, lastContent);
+                                saveNeeded = false;
+                            }
+                        }, 1000);
+                    } else {
+                        // console.log('Other message type:', parsedMessage);
                     }
+                } catch (error) {
+                    console.log("Parsing error detected. Might be worth investigating");
                 }
-            });
-        } else {
-            console.log("Connection closed: No document ID found");
-            conn.close();
-        }
+            }
+        });
     });
+
+    return id;
 }
 
 
-function saveContentToDatabase(content: string) {
-    // Save content to the database
-    console.log('Saving content to database:', content);
+async function saveContentToDatabase(id: string, data: string) {
+    await updateDocumentById(id, data);
 }
 
-export function monitorOrchastration(port: number, interval: number = 10000): void {
+export function monitorOrchastration(port: number, documentId: string, interval: number = 10000): void {
     setInterval(() => {
         let conns = 0;
         const info: {}[] = [];
@@ -95,8 +103,7 @@ export function monitorOrchastration(port: number, interval: number = 10000): vo
             const stats = {
                 conns,
                 docs: docs.size,
-                websocket: `http://localhost:${port}/${doc.name}`,
-                http: `http://localhost:${port}`
+                websocket: `http://localhost:${port}/documents/${documentId}`
             };
             info.push(stats)
         });
