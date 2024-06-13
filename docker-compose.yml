@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  max-node-app:
+    container_name: max-node-app
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DB_USERNAME: akin
+      DB_PASSWORD: Password1
+      DB_NAME: mongodb
+      # Replace 'mongodb-container' with the name of your MongoDB container
+      DB_HOST: mongodb:27017
+    networks:
+      - redis-kafka-mysql_app-mysql
+
+networks:
+  redis-kafka-mysql_app-mysql:
+    external: true
