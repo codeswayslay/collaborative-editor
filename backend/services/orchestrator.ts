@@ -13,7 +13,13 @@ let debounceTimeout: NodeJS.Timeout;
 let saveNeeded = false;
 let lastContent: string;
 
-export function setupOrchastration(httpServer: http.Server, wss: WebSocket.Server): string {
+const wss = new WebSocket.Server({ noServer: true });
+
+function generateUniqueID() {
+    return Math.random().toString(36).substring(2, 11);
+}
+
+export function setupOrchastration(httpServer: http.Server): string {
     let id: string = "";
 
     httpServer.on('upgrade', (request, socket, head) => {
@@ -29,6 +35,8 @@ export function setupOrchastration(httpServer: http.Server, wss: WebSocket.Serve
             wss.handleUpgrade(request, socket, head, (ws) => {
                 // Attach documentId to WebSocket connection
                 (ws as any).documentId = requestedDocumentId;
+                (ws as any).id = generateUniqueID();
+                (ws as any).connectionTime = new Date().toISOString();
                 wss.emit('connection', ws, request);
                 console.log("Created connection for document:", requestedDocumentId);
             });
@@ -98,14 +106,26 @@ export function monitorOrchastration(port: number, documentId: string, interval:
     setInterval(() => {
         let conns = 0;
         const info: {}[] = [];
-        docs.forEach(doc => {
+
+        docs.forEach((doc, docId) => {
             conns += doc.conns.size;
+            const connectionDetails: {}[] = [];
+
+            // Iterate over WebSocket clients
+            wss.clients.forEach(client => {
+                connectionDetails.push({
+                    clientId: (client as any).id,
+                    readyState: client.readyState,
+                    isAlive: client.readyState === WebSocket.OPEN
+                });
+            });
+
             const stats = {
                 conns,
-                docs: docs.size,
-                websocket: `http://localhost:${port}/documents/${documentId}`
+                websocket: `ws://localhost:${port}/documents/${docId}`,
+                connectionDetails
             };
-            info.push(stats)
+            info.push(stats);
         });
         console.log(`${new Date().toISOString()} Stats: ${JSON.stringify(info)}`);
     }, interval);

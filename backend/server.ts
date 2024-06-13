@@ -27,7 +27,6 @@ const port = 4000;
 
 const app = express();
 const httpServer = http.createServer(app);
-const wss = new WebSocket.Server({ noServer: true });
 
 // Session
 app.use(session({
@@ -132,7 +131,12 @@ app.get("/editor", async (req, res, next) => {
         return res.redirect("/login");
     }
 
-    res.render('editor', { username: user.username, documentId: id });
+    res.render('editor', {
+        username: user.username,
+        userId: user._id,
+        documentId: id,
+        ownerId: (doc as IDocument).userId
+    });
 });
 
 app.get("/document-list", async (req, res, next) => {
@@ -190,7 +194,7 @@ async function startServer() {
 
 
         //setup websocket orchastrator for document
-        let id = setupOrchastration(httpServer, wss);
+        let id = setupOrchastration(httpServer);
 
         //monitor orchastrator
         monitorOrchastration(port, id);

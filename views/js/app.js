@@ -68,9 +68,9 @@ window.addEventListener("load", async () => {
     //     }
     // })
 
-    const saveAndExitBtn = document.getElementById("y-connect-btn");
+    const saveAndExitBtn = document.getElementById("y-exit-btn");
     saveAndExitBtn?.addEventListener("click", async () => {
-        console.log("clicked!")
+        console.log("disconnected!")
         // Disconnect from the WebSocket provider and redirect user to document lis
         provider.disconnect();
         window.location.href = "/document-list";
@@ -91,6 +91,25 @@ window.addEventListener("load", async () => {
         provider.ws.send(message)
     }
 
+    // Undo and Redo functionality 
+    const undoButton = document.getElementById("undo-btn");
+    const redoButton = document.getElementById("redo-btn");
+
+    undoButton.addEventListener("click", () => {
+        editor.history.undo();
+    });
+
+    redoButton.addEventListener("click", () => {
+        editor.history.redo();
+    });
+
+    //close connection when browser closes
+    window.addEventListener('beforeunload', () => {
+        provider.disconnect();
+        console.log('WebSocket connection closed');
+    });
+
+
     //for debugging - do not touch
-    // window.example = { provider, ydoc, ytext, binding, Y }
+    window.example = { provider, ydoc, ytext, binding, Y }
 })
