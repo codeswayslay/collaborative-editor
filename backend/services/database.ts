@@ -4,12 +4,19 @@ import dotenv from "dotenv";
 dotenv.config();
 
 function connectDB() {
-    const dbUsername = process.env.DB_USERNAME;
-    const dbPassword = process.env.DB_PASSWORD;
-    const dbName = process.env.DB_NAME;
-    const dbHost = process.env.DB_HOST;
+    const dbUsername = process.env.DB_USERNAME || "";
+    const dbPassword = process.env.DB_PASSWORD || "";
+    const dbName = process.env.DB_NAME || "";
+    const dbHost = process.env.DB_HOST || "localhost:27017";
 
-    const connectionString = `mongodb://${dbUsername}:${dbPassword}@${dbHost}/${dbName}`;
+    let connectionString = "mongodb://";
+    if (dbUsername && dbPassword) {
+        connectionString += `${dbUsername}:${dbPassword}@`;
+    }
+    connectionString += `${dbHost}`;
+    if (dbName) {
+        connectionString += `/${dbName}`;
+    }
 
     console.log("connection string:", connectionString);
     console.log("attempting to connect to database");
