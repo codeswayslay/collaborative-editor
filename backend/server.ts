@@ -9,7 +9,7 @@ import flash from "connect-flash";
 import { monitorOrchastration, setupOrchastration } from "./services/orchestrator"
 import { createUser } from "./services/userService";
 import dotenv from "dotenv"
-import connectDB from "./services/database"
+import connectDB, { closeDbConnection } from "./services/database"
 import {
     findDocumentById,
     saveDocument,
@@ -192,7 +192,6 @@ async function startServer() {
     try {
         connectDB();
 
-
         //setup websocket orchastrator for document
         let id = setupOrchastration(httpServer);
 
@@ -210,3 +209,12 @@ async function startServer() {
 
 // Start the server
 startServer();
+
+//graceful shutdown in docker
+process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received. Shutting down gracefully.');
+    httpServer.close(() => {
+        console.log('HTTP server closed.');
+        closeDbConnection();
+    });
+});

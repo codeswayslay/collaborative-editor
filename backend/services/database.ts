@@ -29,4 +29,10 @@ function connectDB() {
         })
 }
 
+export function closeDbConnection() {
+    mongoose.connection.close().then(() => {
+        console.log("Db connection closed");
+    })
+}
+
 export default connectDB;
