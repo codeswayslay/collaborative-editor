@@ -10,7 +10,6 @@ services:
       DB_USERNAME: akin
       DB_PASSWORD: Password1
       DB_NAME: mongodb
-      # Replace 'mongodb-container' with the name of your MongoDB container
       DB_HOST: mongodb:27017
     networks:
       - redis-kafka-mysql_app-mysql
