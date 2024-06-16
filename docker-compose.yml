@@ -9,7 +9,7 @@ services:
     environment:
       DB_USERNAME: akin
       DB_PASSWORD: Password1
-      DB_NAME: mongodb
+      DB_NAME: maxdb
       DB_HOST: mongodb:27017
     networks:
       - redis-kafka-mysql_app-mysql
