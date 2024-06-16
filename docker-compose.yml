@@ -5,15 +5,16 @@ services:
     container_name: max-node-app
     build: .
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
-      DB_USERNAME: akin
-      DB_PASSWORD: Password1
+      # DB_USERNAME: akin
+      # DB_PASSWORD: Password1
       DB_NAME: maxdb
-      DB_HOST: mongodb:27017
-    networks:
-      - redis-kafka-mysql_app-mysql
+      # DB_HOST: mongodb:27017
+      DB_HOST: host.docker.internal:27017
+    # networks:
+    #   - redis-kafka-mysql_app-mysql
 
-networks:
-  redis-kafka-mysql_app-mysql:
-    external: true
+# networks:
+#   redis-kafka-mysql_app-mysql:
+#     external: true
