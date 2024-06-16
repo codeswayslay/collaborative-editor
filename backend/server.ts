@@ -2,24 +2,17 @@ import express from "express";
 import session from "express-session";
 import passport from "passport";
 import bodyParser from "body-parser";
-import WebSocket from "ws";
 import http from "http";
 import path from "path";
 import flash from "connect-flash";
-import { monitorOrchastration, setupOrchastration } from "./services/orchestrator"
-import { createUser } from "./services/userService";
+import { monitorOrchastration, setupOrchastration, shutdownWebSocketServer } from "./services/orchestrator";
 import dotenv from "dotenv"
-import connectDB, { closeDbConnection } from "./services/database"
-import {
-    findDocumentById,
-    saveDocument,
-    getDocumentById,
-    getDocumentsByUserId,
-    updateDocumentById
-} from "./services/documentService";
-import UserModel, { IUserDocument } from "./models/User"
-import "./services/authService"
-import { IDocument } from "./models/Document";
+import connectDB, { closeDbConnection } from "./services/database";
+
+//routes
+import authRouter from "./routes/auth";
+import documentRouter from "./routes/document";
+import contentRouter from "./routes/content";
 
 dotenv.config();
 
@@ -58,126 +51,13 @@ app.use((req, res, next) => {
     next();
 });
 
+//setup routes
+app.use("/", authRouter);
+app.use("/", documentRouter);
+app.use("/", contentRouter);
+
 app.get("/health", (req, res) => {
     res.json({ response: "ok" });
-});
-
-app.get("/login", (req, res) => {
-    res.render("login");
-})
-
-app.post("/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: IUserDocument, info: any) => {
-        if (err) {
-            return next(err);
-        }
-        if (!user) {
-            req.flash('error', 'The username or password is invalid');
-            return res.redirect("/login");
-        }
-        req.logIn(user, (err) => {
-            if (err) {
-                return next(err);
-            }
-            return res.redirect("/document-list");
-        });
-    })(req, res, next);
-});
-
-app.get("/register", (req, res) => {
-    res.render("register");
-})
-
-app.post("/register", async (req, res) => {
-    const { username, password } = req.body;
-    if (username.length < 1 || password.length < 1) {
-        req.flash('error', 'Username and password must be provided');
-        return res.redirect('/register');
-    }
-
-    try {
-        const user = await createUser(username, password);
-        req.login(user as IUserDocument, (err) => {
-            if (err) {
-                req.flash('error', 'Something went wrong with your registration.');
-                console.error(err);
-                return res.redirect('/register');
-            }
-            return res.redirect('/document-list');
-        });
-    } catch (err) {
-        req.flash('error', 'Username probably already exists.');
-        console.error(err);
-        res.redirect('/register');
-    }
-});
-
-app.get("/logout", (req, res) => {
-    req.logout(() => {
-        res.redirect("/login");
-    });
-});
-
-app.get("/editor", async (req, res, next) => {
-    const { id } = req.query;
-    const doc = await findDocumentById(id as string);
-    if (!doc) {
-        return res.render('error', { message: 'Invalid document ID' });
-    }
-
-    // Fetch user details
-    const user = req.isAuthenticated() ? req.user as IUserDocument : null;
-    if (!user) {
-        return res.redirect("/login");
-    }
-
-    res.render('editor', {
-        username: user.username,
-        userId: user._id,
-        documentId: id,
-        ownerId: (doc as IDocument).userId
-    });
-});
-
-app.get("/document-list", async (req, res, next) => {
-    if (req.isAuthenticated()) {
-        const documents = await getDocumentsByUserId(String((req.user as IUserDocument)._id));
-        res.render('document-list', { documents });
-    } else {
-        res.redirect('/login');
-    }
-});
-
-app.post('/create-document', async (req, res) => {
-    const { documentName } = req.body;
-    console.log("document name:", documentName);
-    if (req.isAuthenticated()) {
-        await saveDocument('content', documentName, '', String((req.user as IUserDocument)._id));
-        res.redirect('/document-list');
-    } else {
-        res.redirect('/login');
-    }
-});
-
-//frontend editor will call this to get logged in user's details
-app.get("/user", (req, res) => {
-    if (req.isAuthenticated()) {
-        res.json(req.user);
-    } else {
-        res.status(401).json({ error: "Not authenticated" });
-    }
-});
-
-// Assuming you have a route like this in your Express app
-app.get('/documents/:documentId/content', async (req, res) => {
-    const documentId = req.params.documentId;
-    try {
-        const documentContent = await getDocumentById(documentId);
-        res.json({ content: documentContent });
-    } catch (error) {
-        console.error("Error fetching document content:", error);
-        res.status(500).json({ error: "Failed to fetch document content" });
-    }
 });
 
 app.get('/', (req, res) => {
@@ -211,10 +91,24 @@ async function startServer() {
 startServer();
 
 //graceful shutdown in docker
-process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received. Shutting down gracefully.');
+function gracefulShutdown() {
+    console.log('Shutting down gracefully...');
+
+    //shut down websocket
+    shutdownWebSocketServer();
+
+    //shut down server
     httpServer.close(() => {
-        console.log('HTTP server closed.');
+        console.log('HTTP server closed');
         closeDbConnection();
     });
-});
+
+    // Forcefully shut down app if websocket / server hasn't closed after a delay
+    setTimeout(() => {
+        console.error('Forcefully shutting down');
+        process.exit(1);
+    }, 60000);
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

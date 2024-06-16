@@ -1,13 +1,7 @@
 import http from 'http';
 import WebSocket from 'ws';
 import { setupWSConnection, docs } from 'y-websocket/bin/utils';
-import {
-    findDocumentById,
-    saveDocument,
-    getDocumentById,
-    getDocumentsByUserId,
-    updateDocumentById
-} from "./documentService";
+import { updateDocumentById } from "./documentService";
 
 let debounceTimeout: NodeJS.Timeout;
 let saveNeeded = false;
@@ -129,4 +123,14 @@ export function monitorOrchastration(port: number, documentId: string, interval:
         });
         console.log(`${new Date().toISOString()} Stats: ${JSON.stringify(info)}`);
     }, interval);
+}
+
+export function shutdownWebSocketServer() {
+    console.log("Closing Websocket server...");
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) client.close();
+    });
+    wss.close(() => {
+        console.log("WebSocket server closed.");
+    })
 }

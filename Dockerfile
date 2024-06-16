@@ -10,6 +10,11 @@ COPY . .
 
 COPY .env .
 
+RUN npm run build
+
+# Ensure the build output is present
+RUN ls -la /usr/src/app/dist
+
 EXPOSE 4000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "dist/server.js"]
